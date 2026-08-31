@@ -2,10 +2,10 @@
        agent any
 
        environment {
-           AWS_REGION   = 'us-east-1'
-           ECR_REPO     = '123456789012.dkr.ecr.us-east-1.amazonaws.com/java-webapp'
+           AWS_REGION   = 'ap-south-1'
+           ECR_REPO     = '210806258948.dkr.ecr.ap-south-1.amazonaws.com/java-webapp'
            IMAGE_TAG    = "${BUILD_NUMBER}"
-           DOCKER_EC2   = 'ubuntu@<Docker-EC2-Private-or-Public-IP>'
+           DOCKER_EC2   = 'ec2-user@43.205.242.99'
        }
 
        stages {
