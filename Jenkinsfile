@@ -1,5 +1,9 @@
    pipeline {
        agent any
+      tools {
+        jdk 'JDK17'
+        maven 'Maven3'
+    }
 
        environment {
            AWS_REGION   = 'ap-south-1'
