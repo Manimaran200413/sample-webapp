@@ -25,7 +25,6 @@ pipeline {
         """
       }
     }
-    ```groovy
 stage('Deploy: Roll Instances') {
     steps {
         sh '''
@@ -111,7 +110,5 @@ stage('Deploy: Roll Instances') {
         '''
     }
 }
-```
-
   }
 }
