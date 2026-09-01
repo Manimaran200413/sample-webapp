@@ -1,59 +1,36 @@
-   pipeline {
-       agent any
-      tools {
-        jdk 'JDK17'
-        maven 'Maven3'
+pipeline {
+  agent any
+  environment {
+    AWS_REGION   = 'ap-south-1'
+    ECR_REPO     = '210806258948.dkr.ecr.ap-south-1.amazonaws.com/tomcat-app'
+    ASG_NAME     = 'tomcat-app-asg'
+  }
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
     }
-
-       environment {
-           AWS_REGION   = 'ap-south-1'
-           ECR_REPO     = '210806258948.dkr.ecr.ap-south-1.amazonaws.com/java-webapp'
-           IMAGE_TAG    = "${BUILD_NUMBER}"
-           DOCKER_EC2   = 'ec2-user@43.205.242.99'
-       }
-
-       stages {
-           stage('Checkout') {
-               steps { checkout scm }
-           }
-
-           stage('Maven Build') {
-               steps { sh 'mvn clean package -DskipTests' }
-           }
-
-           stage('Docker Build') {
-               steps {
-                   sh "docker build -t ${ECR_REPO}:${IMAGE_TAG} ."
-               }
-           }
-
-           stage('Push to ECR') {
-               steps {
-                   sh """
-                       aws ecr get-login-password --region ${AWS_REGION} | \
-                       docker login --username AWS --password-stdin ${ECR_REPO}
-                       docker push ${ECR_REPO}:${IMAGE_TAG}
-                       docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_REPO}:latest
-                       docker push ${ECR_REPO}:latest
-                   """
-               }
-           }
-
-           stage('Deploy to Docker EC2') {
-               steps {
-                   sshagent(['docker-ec2-ssh-key']) {
-                       sh """
-                           ssh -o StrictHostKeyChecking=no ${DOCKER_EC2} '
-                               aws ecr get-login-password --region ${AWS_REGION} | \
-                               docker login --username AWS --password-stdin ${ECR_REPO} &&
-                               docker pull ${ECR_REPO}:latest &&
-                               docker stop javaapp || true &&
-                               docker rm javaapp || true &&
-                               docker run -d --name javaapp -p 8080:8080 ${ECR_REPO}:latest
-                           '
-                       """
-                   }
-               }
-           }
-       }
-   }
+    stage('Build WAR') {
+      steps { sh 'mvn clean package' }   // or your build tool of choice
+    }
+    stage('Build & Push Docker Image') {
+      steps {
+        sh '''
+          aws ecr get-login-password --region $AWS_REGION | \
+            docker login --username AWS --password-stdin $ECR_REPO
+          docker build -t $ECR_REPO:$BUILD_NUMBER -t $ECR_REPO:latest .
+          docker push $ECR_REPO:$BUILD_NUMBER
+          docker push $ECR_REPO:latest
+        '''
+      }
+    }
+    stage('Deploy: Roll Instances') {
+      steps {
+        sh '''
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name $ASG_NAME \
+            --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":120}'
+        '''
+      }
+    }
+  }
+}
