@@ -15,22 +15,24 @@ pipeline {
     }
     stage('Build & Push Docker Image') {
       steps {
-        sh '''
-          aws ecr get-login-password --region $AWS_REGION | \
-            docker login --username AWS --password-stdin $ECR_REGISTRY
-          docker build -t $ECR_REPO:$BUILD_NUMBER -t $ECR_REPO:latest .
-          docker push $ECR_REPO:$BUILD_NUMBER
-          docker push $ECR_REPO:latest
-        '''
+        // Changed to double quotes ( """) so Jenkins expands the variables
+        sh """
+          aws ecr get-login-password --region ${AWS_REGION} | \
+            docker login --username AWS --password-stdin ${ECR_REGISTRY}
+          docker build -t ${ECR_REPO}:${BUILD_NUMBER} -t ${ECR_REPO}:latest .
+          docker push ${ECR_REPO}:${BUILD_NUMBER}
+          docker push ${ECR_REPO}:latest
+        """
       }
     }
     stage('Deploy: Roll Instances') {
       steps {
-        sh '''
+        // Changed to double quotes ( """) to pass the ASG_NAME correctly
+        sh """
           aws autoscaling start-instance-refresh \
-            --auto-scaling-group-name $ASG_NAME \
+            --auto-scaling-group-name ${ASG_NAME} \
             --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":120}'
-        '''
+        """
       }
     }
   }
